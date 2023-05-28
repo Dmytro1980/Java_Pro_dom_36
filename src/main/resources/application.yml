@@ -1,0 +1,25 @@
+spring:
+  datasource:
+      driver-class-name: org.postgresql.Driver
+      url: jdbc:postgresql://localhost:5432/hillel
+      username: ${pg_user}
+      password: ${pg_password}
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+
+
+
+
+
+
+logging:
+  level:
+    root: debug
+  file:
+    name: Java_Pro_dom_36.log
+
+
+

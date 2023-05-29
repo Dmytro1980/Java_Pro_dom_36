@@ -38,4 +38,8 @@ public class BLRecordService {
     public void deleteById(Integer id) {
         this.blRecordRepository.deleteById(id);
     }
-   }
+
+    public boolean existsByDomain(String domain) {
+        return this.blRecordRepository.existsByDomainEndsWithIgnoreCase(domain);
+    }
+}

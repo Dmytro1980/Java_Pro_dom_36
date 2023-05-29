@@ -17,9 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @RestController
 @RequestMapping("/link")
@@ -164,25 +162,12 @@ public class LinkRestController {
     // /link/add?name={name}... - add new link
     // /link/add?name={name}&value={value}&category={category(int)}&tag={tag}
     // добавление в Links новой ссылки
-    @PostMapping("/add")
+    @PostMapping(value = "/add")
     @ResponseStatus(HttpStatus.CREATED)
     public Link add(@RequestParam("name") String name,
                     @RequestParam("value") String value,
                     @RequestParam("category") Integer category,
-                    @RequestParam("tag") String tag) {
-
-        // check value in BlackList
-        List<BLRecord> blRecords = blRecordService.findALL();
-        boolean valueIsInBlackList = false;
-        for (BLRecord blr : blRecords) {
-            if (value.contains(blr.getDomain())) {
-                valueIsInBlackList = true;
-                break;
-            }
-        }
-        if (valueIsInBlackList) {
-            throw new IllegalArgumentException("value " + value + " in Black List");
-        }
+                    @RequestParam(value = "tags") String... arrStringsFromParam) {
 
         // check value as correct URL
         try {
@@ -190,6 +175,15 @@ public class LinkRestController {
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException("value " + value + " is wrong URL");
         }
+
+
+        // check value in BlackList
+        boolean isInBlackList = blRecordService.existsByDomain(value);
+        if(isInBlackList){
+            throw new IllegalArgumentException("value " + value + " in Black List");
+        }
+
+        //===========================================
 
         // check category
         List<Category> categories = categoryService.findALL();
@@ -206,26 +200,50 @@ public class LinkRestController {
         }
 
         //check tag
-        Link link = new Link();
-        List<Tag> tags = tagService.findALL();
-        boolean isTagFound = false;
-        for (Tag t : tags) {
-            if (Objects.equals(t.getName(), tag)) {
-                isTagFound = true;
-                link.setName(name);
-                link.setValue(value);
-                link.setCategory(category);
-                Long dateAddLink = ZonedDateTime.now().toInstant().toEpochMilli();
-                link.setCreatedAt(dateAddLink);
-                link.addTag(t);
 
-                break;
+        // все теги из БД
+        List<Tag> tagsFromDB = tagService.findALL();
+
+        // сет тегов из запроса, которых нет в БД
+        Set<String> stringParamNotInDB = new HashSet<>();
+
+        // перебор всех параметров
+        // мапа хранящая параметр+тег которые есть и в запросе и в БД
+        Map<String, Tag> paramsAndTagsInDB = new HashMap<>();
+
+        for (String s : arrStringsFromParam) {
+            for (Tag t : tagsFromDB) {
+                if (Objects.equals(t.getName(), s)) {
+                    paramsAndTagsInDB.put(s, t);
+                } else
+                    stringParamNotInDB.add(s);
+
             }
         }
-        if (!isTagFound) {
-            throw new IllegalArgumentException("tag " + tag + " is not created yet");
-        }
 
-        return linkService.save(link);
+        if (paramsAndTagsInDB.size() == arrStringsFromParam.length) {
+            Link link = new Link();
+            link.setName(name);
+            link.setValue(value);
+            link.setCategory(category);
+            Long dateNow = ZonedDateTime.now().toInstant().toEpochMilli();
+            link.setCreatedAt(dateNow);
+
+            for (Tag t : paramsAndTagsInDB.values()) {
+                link.addTag(t);
+            }
+
+            return linkService.save(link);
+        } else {
+
+            List<String> tagNames = new ArrayList<>();
+            for (Tag t : tagsFromDB) {
+                tagNames.add(t.getName());
+            }
+
+            stringParamNotInDB.removeIf(tagNames::contains);
+
+            throw new IllegalArgumentException("tags " + stringParamNotInDB + " is not created yet");
+        }
     }
 }

@@ -19,4 +19,6 @@ public interface BLRecordRepository extends ListCrudRepository<BLRecord, Integer
     void updateById(
             @Param("id") Integer id,
             @Param("domain") String domain);
+
+    boolean existsByDomainEndsWithIgnoreCase(String domain);
 }
